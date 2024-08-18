@@ -9,13 +9,10 @@ const Like = require("../models/like");
 const sequelize = require("../config/database");
 const auth = require("../middleware/auth");
 const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
 
-// Set up multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "/uploads"); // Ensure this directory exists and is writable
+    cb(null, "uploads");
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}_${file.originalname}`);
@@ -40,11 +37,8 @@ const upload = multer({
 // Utility function to handle errors
 const handleErrors = (res, error, message) => {
   console.error(message, error);
-  res.status(500).json({ error: message });
+  res.status(500).send(message);
 };
-
-// Serve the uploads directory as static content
-router.use("/uploads", express.static("/uploads")); // Ensure this matches the mount path in Render
 
 // Controller functions
 const createPost = async (req, res) => {
@@ -55,36 +49,27 @@ const createPost = async (req, res) => {
 
   const { title, category, description, location } = req.body;
 
-  const transaction = await sequelize.transaction();
   try {
-    const post = await Post.create(
-      {
-        title,
-        category,
-        description,
-        location,
-        userId: req.user.id,
-      },
-      { transaction }
-    );
+    const post = await Post.create({
+      title,
+      category,
+      description,
+      location,
+      userId: req.user.id,
+    });
 
     if (req.files && req.files.length) {
       for (let file of req.files) {
-        await Media.create(
-          {
-            url: `/uploads/${file.filename}`, // Ensure this matches the mount path
-            userId: req.user.id,
-            postId: post.id,
-          },
-          { transaction }
-        );
+        await Media.create({
+          url: `/uploads/${file.filename}`,
+          userId: req.user.id,
+          postId: post.id,
+        });
       }
     }
 
-    await transaction.commit();
     res.status(201).send(post);
   } catch (err) {
-    await transaction.rollback();
     handleErrors(res, err, "Error creating post");
   }
 };
@@ -231,29 +216,9 @@ const deletePost = async (req, res) => {
     if (post.userId !== req.user.id) {
       return res.status(403).send("Not authorized");
     }
-
-    const mediaFiles = await Media.findAll({ where: { postId: post.id } });
-    for (const media of mediaFiles) {
-      const filePath = path.join(
-        "/uploads", // Use the absolute path where the disk is mounted
-        path.basename(media.url)
-      );
-      console.log(`Attempting to delete file: ${filePath}`);
-
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-        } catch (unlinkErr) {
-          console.error(`Error deleting file: ${filePath}`, unlinkErr);
-        }
-      } else {
-        console.warn(`File not found: ${filePath}`);
-      }
-    }
-
+    await Comment.destroy({ where: { postId: post.id } });
     await Media.destroy({ where: { postId: post.id } });
     await Like.destroy({ where: { postId: post.id } });
-    await Comment.destroy({ where: { postId: post.id } });
     await post.destroy();
     res.send("Post and associated media deleted");
   } catch (err) {
@@ -303,14 +268,7 @@ const getPostById = async (req, res) => {
 router.post(
   "/create",
   auth,
-  (req, res, next) => {
-    upload.array("media", 5)(req, res, function (err) {
-      if (err instanceof multer.MulterError || err) {
-        return res.status(400).send({ error: err.message });
-      }
-      next();
-    });
-  },
+  upload.array("media", 5),
   [
     body("title")
       .isLength({ min: 5, max: 100 })
