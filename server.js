@@ -15,7 +15,11 @@ const app = express();
 require("dotenv").config(); // Load environment variables
 require("./config/passport"); // Passport config
 
-const allowedOrigins = ["http://trusted.com", "http://localhost:3000"];
+const allowedOrigins = [
+  "http://trusted.com",
+  "http://localhost:3000",
+  "https://vocal-douhua-b76663.netlify.app",
+];
 app.use(
   cors({
     origin: (origin, callback) => {
