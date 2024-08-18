@@ -12,7 +12,7 @@ const multer = require("multer");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads");
+    cb(null, "uploads/data");
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}_${file.originalname}`);
@@ -61,7 +61,7 @@ const createPost = async (req, res) => {
     if (req.files && req.files.length) {
       for (let file of req.files) {
         await Media.create({
-          url: `/uploads/${file.filename}`,
+          url: `/uploads/data/${file.filename}`,
           userId: req.user.id,
           postId: post.id,
         });
