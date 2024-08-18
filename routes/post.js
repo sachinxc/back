@@ -10,12 +10,9 @@ const sequelize = require("../config/database");
 const auth = require("../middleware/auth");
 const multer = require("multer");
 
-// Serve static files from the uploads directory
-router.use("/uploads", express.static("uploads"));
-
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/data"); // Ensure this matches the persistent disk mount path
+    cb(null, "uploads");
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}_${file.originalname}`);
@@ -64,7 +61,7 @@ const createPost = async (req, res) => {
     if (req.files && req.files.length) {
       for (let file of req.files) {
         await Media.create({
-          url: `/uploads/data/${file.filename}`,
+          url: `/uploads/${file.filename}`,
           userId: req.user.id,
           postId: post.id,
         });
