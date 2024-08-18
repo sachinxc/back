@@ -234,9 +234,22 @@ const deletePost = async (req, res) => {
 
     const mediaFiles = await Media.findAll({ where: { postId: post.id } });
     for (const media of mediaFiles) {
-      fs.unlinkSync(
-        path.join(__dirname, "../uploads", path.basename(media.url))
+      const filePath = path.join(
+        __dirname,
+        "../uploads",
+        path.basename(media.url)
       );
+      console.log(`Attempting to delete file: ${filePath}`);
+
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkErr) {
+          console.error(`Error deleting file: ${filePath}`, unlinkErr);
+        }
+      } else {
+        console.warn(`File not found: ${filePath}`);
+      }
     }
 
     await Media.destroy({ where: { postId: post.id } });
