@@ -15,7 +15,7 @@ const path = require("path");
 // Set up multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads"); // Ensure this directory is served statically
+    cb(null, "/uploads"); // Use the absolute path where the disk is mounted
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}_${file.originalname}`);
@@ -44,7 +44,7 @@ const handleErrors = (res, error, message) => {
 };
 
 // Serve the uploads directory as static content
-router.use("/uploads", express.static("uploads"));
+router.use("/uploads", express.static("/uploads")); // Ensure this matches the mount path in Render
 
 // Controller functions
 const createPost = async (req, res) => {
@@ -72,7 +72,7 @@ const createPost = async (req, res) => {
       for (let file of req.files) {
         await Media.create(
           {
-            url: `/uploads/${file.filename}`,
+            url: `/uploads/${file.filename}`, // Ensure this matches the mount path
             userId: req.user.id,
             postId: post.id,
           },
@@ -235,8 +235,7 @@ const deletePost = async (req, res) => {
     const mediaFiles = await Media.findAll({ where: { postId: post.id } });
     for (const media of mediaFiles) {
       const filePath = path.join(
-        __dirname,
-        "../uploads",
+        "/uploads", // Use the absolute path where the disk is mounted
         path.basename(media.url)
       );
       console.log(`Attempting to delete file: ${filePath}`);
