@@ -9,19 +9,10 @@ const Like = require("../models/like");
 const sequelize = require("../config/database");
 const auth = require("../middleware/auth");
 const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
 
-// Ensure the uploads directory exists
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
-
-// Set up multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadsDir); // Ensure this points to the correct directory
+    cb(null, "uploads");
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}_${file.originalname}`);
@@ -48,9 +39,6 @@ const handleErrors = (res, error, message) => {
   console.error(message, error);
   res.status(500).send(message);
 };
-
-// Serve static files from the uploads directory
-router.use("/uploads", express.static(uploadsDir));
 
 // Controller functions
 const createPost = async (req, res) => {
