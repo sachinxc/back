@@ -15,7 +15,7 @@ const path = require("path");
 // Set up multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "/uploads"); // Use the absolute path where the disk is mounted
+    cb(null, "/uploads"); // Ensure this directory exists and is writable
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}_${file.originalname}`);
