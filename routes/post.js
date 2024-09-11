@@ -50,6 +50,7 @@ const createPost = async (req, res) => {
   const { title, category, description, location } = req.body;
 
   try {
+    console.log('Files received:', req.files); // Add this line to debug
     const post = await Post.create({
       title,
       category,
