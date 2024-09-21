@@ -97,7 +97,7 @@ router.get("/profile/:id", auth, async (req, res) => {
     const postsWithMedia = await Promise.all(
       user.posts.map(async (post) => {
         const media = await Media.findAll({ where: { postId: post.id } });
-        return { ...post.toJSON(), media, dateTime: post.createdAt, // Explicitly pass createdAt as dateTime };
+        return { ...post.toJSON(), media, dateTime: post.createdAt,};
       })
     );
 
