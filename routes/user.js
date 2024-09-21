@@ -74,7 +74,7 @@ router.get("/profile/:id", auth, async (req, res) => {
         {
           model: Post,
           as: "posts",
-          attributes: ["id", "title", "description", "category", "location", "createdAt"], // Include 'createdAt' if needed
+          attributes: ["id", "title", "description", "category", "location"], // Include 'createdAt' if needed
           order: [["createdAt", "DESC"]], // Sort posts by 'createdAt' in descending order
         },
         {
@@ -97,7 +97,7 @@ router.get("/profile/:id", auth, async (req, res) => {
     const postsWithMedia = await Promise.all(
       user.posts.map(async (post) => {
         const media = await Media.findAll({ where: { postId: post.id } });
-        return { ...post.toJSON(), media };
+        return { ...post.toJSON(), media, dateTime: post.createdAt, // Explicitly pass createdAt as dateTime };
       })
     );
 
