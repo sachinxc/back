@@ -66,10 +66,16 @@ router.get("/profile/:id", auth, async (req, res) => {
     const userId = req.params.id === "me" ? req.user.id : req.params.id;
     const user = await User.findByPk(userId, {
       include: [
-        {
+        /*{
           model: Post,
           as: "posts",
           attributes: ["id", "title", "description", "category", "location"],
+        },*/
+        {
+          model: Post,
+          as: "posts",
+          attributes: ["id", "title", "description", "category", "location", "createdAt"], // Include 'createdAt' if needed
+          order: [["createdAt", "DESC"]], // Sort posts by 'createdAt' in descending order
         },
         {
           model: User,
