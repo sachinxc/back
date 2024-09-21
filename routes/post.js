@@ -276,7 +276,7 @@ router.post(
       .withMessage("Title must be between 5 and 100 characters"),
     body("category").notEmpty().withMessage("Category is required"),
     body("description")
-      .isLength({ min: 10, max: 1000 })
+      .isLength({ min: 10, max: 2000 })
       .withMessage("Description must be between 10 and 1000 characters"),
     body("location").notEmpty().withMessage("Location is required"),
   ],
