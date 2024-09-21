@@ -64,18 +64,13 @@ router.put("/profile-pic", auth, async (req, res) => {
 router.get("/profile/:id", auth, async (req, res) => {
   try {
     const userId = req.params.id === "me" ? req.user.id : req.params.id;
+    
     const user = await User.findByPk(userId, {
       include: [
-        /*{
-          model: Post,
-          as: "posts",
-          attributes: ["id", "title", "description", "category", "location"],
-        },*/
         {
           model: Post,
           as: "posts",
-          attributes: ["id", "title", "description", "category", "location"], // Include 'createdAt' if needed
-          order: [["createdAt", "DESC"]], // Sort posts by 'createdAt' in descending order
+          attributes: ["id", "title", "description", "category", "location", "createdAt"], // Include 'createdAt' so you can use it in the frontend
         },
         {
           model: User,
@@ -88,6 +83,7 @@ router.get("/profile/:id", auth, async (req, res) => {
           attributes: ["id", "username"],
         },
       ],
+      order: [[{ model: Post, as: "posts" }, "createdAt", "DESC"]], // Sort posts by 'createdAt' in descending order
     });
 
     if (!user) {
@@ -97,7 +93,11 @@ router.get("/profile/:id", auth, async (req, res) => {
     const postsWithMedia = await Promise.all(
       user.posts.map(async (post) => {
         const media = await Media.findAll({ where: { postId: post.id } });
-        return { ...post.toJSON(), media, dateTime: post.createdAt,};
+        return {
+          ...post.toJSON(),
+          media,
+          dateTime: post.createdAt, // Explicitly pass createdAt as dateTime
+        };
       })
     );
 
@@ -117,5 +117,6 @@ router.get("/profile/:id", auth, async (req, res) => {
     res.status(500).send("Error fetching profile");
   }
 });
+
 
 module.exports = router;
