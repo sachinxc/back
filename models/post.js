@@ -64,7 +64,7 @@ const Post = sequelize.define(
     },
     activityLog: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
     },
   },
   {
