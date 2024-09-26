@@ -617,7 +617,10 @@ const upload = multer({
     if (file.mimetype.startsWith("image/") || file.mimetype === "video/mp4") {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type, only images and mp4 videos are allowed!"), false);
+      cb(
+        new Error("Invalid file type, only images and mp4 videos are allowed!"),
+        false
+      );
     }
   },
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -629,54 +632,6 @@ const handleErrors = (res, error, message) => {
   res.status(500).send(message);
 };
 
-// Utility function to parse the activity log string
-const parseActivityLog = (activityLog) => {
-  const jsonString = activityLog
-    .replace(/Activity Log:/, '{')   // Start the JSON object
-    .replace(/Total Steps:/, ',"Total Steps":') 
-    .replace(/Session Duration:/, '"Session Duration":')
-    .replace(/Activity Data:/, '"Activity Data":') 
-    .replace(/Location Data:/, '"Location Data":') 
-    .replace(/Face Recognition Data:/, '"Face Recognition Data":') 
-    .replace(/([[{])\s*([a-zA-Z]+):/g, '$1"$2":') // Wrap keys in quotes
-    .replace(/([{,])\s*([a-zA-Z]+)(?=\s*:)/g, '$1"$2"') // Wrap keys before a colon
-    .replace(/([:,])\s*([a-zA-Z]+)/g, '$1"$2"') // Wrap unquoted values in quotes
-    .replace(/([{,])\s*([\d\.]+)/g, '$1"$2"') // Wrap numbers in quotes
-    .replace(/}\s*]/g, '}}]') // Fix array closure if necessary
-    + '}'; // End the JSON object
-
-  return JSON.parse(jsonString); // Parse the formatted string into a JavaScript object
-};
-
-// Function to validate the activity log
-const validateActivityLog = (parsedLog, location) => {
-  const faceRecognitionData = parsedLog["Face Recognition Data"];
-  const locationData = parsedLog["Location Data"];
-
-  // Check for successful face recognition
-  const successfulRecognitions = faceRecognitionData.filter(item => item.status === 'success');
-
-  // Compare provided location with logged location
-  const validLocation = locationData.some(loc => 
-    loc.latitude.toString() === location.latitude.toString() &&
-    loc.longitude.toString() === location.longitude.toString()
-  );
-
-  // Calculate verification percentage
-  const verificationPercentage = (successfulRecognitions.length / faceRecognitionData.length) * 100;
-
-  // Add verification data to the log
-  parsedLog.verification = {
-    successCount: successfulRecognitions.length,
-    totalCount: faceRecognitionData.length,
-    validLocation,
-    verificationPercentage
-  };
-
-  return parsedLog;
-};
-
-// Controller functions
 const createPost = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -685,19 +640,23 @@ const createPost = async (req, res) => {
 
   const { title, category, description, location, activityLog } = req.body;
 
+  // Validate activity log and location
+  const validationResponse = validateActivityLog(activityLog, location);
+  if (!validationResponse.isValid) {
+    return res.status(400).json({ message: validationResponse.message });
+  }
+
+  const { verificationPercentage, updatedActivityLog } = validationResponse;
+
   try {
-    console.log('Files received:', req.files); // Debugging line
-
-    // Parse and validate the activity log
-    const parsedActivityLog = parseActivityLog(activityLog);
-    const validatedActivityLog = validateActivityLog(parsedActivityLog, location);
-
+    console.log('Files received:', req.files); // Add this line to debug
     const post = await Post.create({
       title,
       category,
       description,
       location,
-      activityLog: JSON.stringify(validatedActivityLog), // Store as JSON string
+      activityLog: updatedActivityLog,
+      verificationPercentage, // Add the verification percentage to the post
       userId: req.user.id,
     });
 
@@ -716,6 +675,44 @@ const createPost = async (req, res) => {
     handleErrors(res, err, "Error creating post");
   }
 };
+
+const validateActivityLog = (activityLog, userLocation) => {
+  // Parsing the activity log string into JSON objects
+  try {
+    const sessionData = JSON.parse(activityLog.match(/Activity Data: (\[.*?\])/, '')[1]);
+    const locationData = JSON.parse(activityLog.match(/Location Data: (\[.*?\])/, '')[1]);
+    
+    // Validate Face Recognition
+    const faceRecognitionData = JSON.parse(activityLog.match(/Face Recognition Data: (\[.*?\])/, '')[1]);
+    const isFaceRecognized = faceRecognitionData.some(data => data.status === "success");
+
+    if (!isFaceRecognized) {
+      return { isValid: false, message: "No successful face recognition found." };
+    }
+
+    // Check if user-provided location matches with the activity log location
+    const userCoordinates = userLocation.split(',').map(coord => parseFloat(coord.trim()));
+    let matches = 0;
+
+    for (const location of locationData) {
+      const { latitude, longitude } = location;
+      if (
+        Math.abs(latitude - userCoordinates[0]) < 0.0001 && 
+        Math.abs(longitude - userCoordinates[1]) < 0.0001
+      ) {
+        matches++;
+      }
+    }
+
+    const verificationPercentage = matches > 0 ? (matches / locationData.length) * 100 : 0;
+    const updatedLog = `${activityLog} Verification: ${verificationPercentage}%`;
+    
+    return { isValid: true, verificationPercentage, updatedActivityLog: updatedLog };
+  } catch (error) {
+    return { isValid: false, message: "Activity log format is invalid." };
+  }
+};
+
 
 const likePost = async (req, res) => {
   try {
@@ -922,7 +919,6 @@ router.post(
       .withMessage("Description must be between 10 and 1000 characters"),
     body("location").notEmpty().withMessage("Location is required"),
     body("activityLog")
-      .notEmpty().withMessage("Activity log is required") // Added validation for activityLog
   ],
   createPost
 );
@@ -936,4 +932,3 @@ router.get("/:id", auth, getPostById);
 router.delete("/delete/:id", auth, deletePost);
 
 module.exports = router;
-
