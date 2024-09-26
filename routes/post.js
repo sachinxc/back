@@ -632,7 +632,6 @@ const handleErrors = (res, error, message) => {
   res.status(500).send(message);
 };
 
-// Controller functions
 const createPost = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -642,8 +641,8 @@ const createPost = async (req, res) => {
   const { title, category, description, location, activityLog } = req.body;
 
   try {
-    // Parse the activity log string into a JSON object
-    const parsedLog = JSON.parse(activityLog);
+    // Parse the activity log string into a structured object
+    const parsedLog = parseActivityLog(activityLog); // Custom function to parse string
 
     // Validate face recognition data
     const faceRecognitionData = parsedLog['Face Recognition Data'];
@@ -653,23 +652,20 @@ const createPost = async (req, res) => {
       return res.status(400).send('Face recognition data contains unrecognized faces');
     }
 
-    // Compare location coordinates from location field and activity log
-    const providedCoordinates = JSON.parse(location);
-    const activityLocationData = parsedLog['Location Data'];
+    // Extract the provided location coordinates (as strings)
+    const [providedLatitude, providedLongitude] = location.split(',').map(coord => parseFloat(coord.trim()));
 
+    const activityLocationData = parsedLog['Location Data'];
     if (activityLocationData.length === 0) {
       return res.status(400).send('Activity log contains no location data');
     }
 
     const logCoordinates = activityLocationData[0]; // Assuming the first entry is relevant for comparison
+    const logLatitude = parseFloat(logCoordinates.latitude);
+    const logLongitude = parseFloat(logCoordinates.longitude);
 
     // Calculate the distance between provided coordinates and activity log coordinates
-    const distance = calculateDistance(
-      providedCoordinates.latitude, 
-      providedCoordinates.longitude, 
-      logCoordinates.latitude, 
-      logCoordinates.longitude
-    );
+    const distance = calculateDistance(providedLatitude, providedLongitude, logLatitude, logLongitude);
 
     // Define a threshold for location match (e.g., 100 meters)
     const isLocationMatch = distance <= 100;
@@ -679,14 +675,14 @@ const createPost = async (req, res) => {
     parsedLog.verificationPercentage = verificationPercentage;
 
     // Convert the augmented activity log back to a string
-    const updatedActivityLog = JSON.stringify(parsedLog);
+    const updatedActivityLog = formatActivityLog(parsedLog);
 
     // Create the post with the modified activity log
     const post = await Post.create({
       title,
       category,
       description,
-      location,
+      location, // Save location as is
       activityLog: updatedActivityLog, // Save the modified activity log as a string
       userId: req.user.id,
     });
@@ -727,6 +723,46 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return distance;
 }
 
+// Utility function to parse the activity log string into a structured object
+function parseActivityLog(activityLog) {
+  const lines = activityLog.split('\n');
+  const parsedLog = {
+    sessionDuration: lines[1].split(':')[1].trim(),
+    totalSteps: lines[2].split(':')[1].trim(),
+    activityData: parseArray(lines.slice(4, 5).join('\n')),
+    locationData: parseArray(lines.slice(6, 7).join('\n')),
+    faceRecognitionData: parseArray(lines.slice(9).join('\n'))
+  };
+  return parsedLog;
+}
+
+// Utility function to convert parsed object back into a string format
+function formatActivityLog(log) {
+  return `
+Session Duration: ${log.sessionDuration}
+Total Steps: ${log.totalSteps}
+
+Activity Data:
+${JSON.stringify(log.activityData, null, 2)}
+
+Location Data:
+${JSON.stringify(log.locationData, null, 2)}
+
+Face Recognition Data:
+${JSON.stringify(log.faceRecognitionData, null, 2)}
+
+Verification Percentage: ${log.verificationPercentage}
+  `.trim();
+}
+
+// Utility function to parse array-like data from strings
+function parseArray(arrayString) {
+  try {
+    return JSON.parse(arrayString);
+  } catch (err) {
+    return []; // Return an empty array if parsing fails
+  }
+}
 
 const likePost = async (req, res) => {
   try {
@@ -946,4 +982,3 @@ router.get("/:id", auth, getPostById);
 router.delete("/delete/:id", auth, deletePost);
 
 module.exports = router;
-
