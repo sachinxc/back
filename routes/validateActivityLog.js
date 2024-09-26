@@ -77,6 +77,7 @@ const validateActivityLog = (activityLog, userProvidedLocation) => {
     totalLocationSuccessCount,
     totalSuccessCount,
     totalFailureCount,
+    totalVerificationCount,
     legitimacyPercentage
   };
 
