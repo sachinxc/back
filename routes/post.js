@@ -2018,14 +2018,14 @@ const createPost = async (req, res) => {
           // Store EXIF data and resized image URL
           exifDataArray.push({
             filename: file.filename,
-            resizedImage: `/uploads/resized_${file.filename}`, // Path to resized image
+            resizedImage: resizedImagePath, // This path points to resized image
             exif: exifData.tags, // Store relevant EXIF tags
           });
 
-          // Store media entry in the database
+          // Store media entry in the database using the resized image URL
           await Media.create({
-            url: `/uploads/${file.filename}`,
-            resizedUrl: `/uploads/resized_${file.filename}`, // Store the resized image URL
+            url: resizedImagePath, // Save resized image URL
+            resizedUrl: resizedImagePath, // Save the resized image URL in this field too
             userId: req.user.id,
             postId: post.id,
           });
@@ -2051,7 +2051,6 @@ const createPost = async (req, res) => {
     handleErrors(res, err, "Error creating post");
   }
 };
-
 
 
 const likePost = async (req, res) => {
