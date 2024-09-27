@@ -2384,34 +2384,29 @@ const createPost = async (req, res) => {
     if (req.files && req.files.length) {
       for (let file of req.files) {
         try {
-          // Resize the image first
-          const resizedImagePath = await resizeImage(file.path, file.filename);
-          
+          const fileBuffer = fs.readFileSync(file.path);
+          let exifData = null;
+    
           // Only try to read EXIF data if it's a JPEG
           if (file.mimetype === 'image/jpeg') {
-            const fileBuffer = fs.readFileSync(resizedImagePath);
             const parser = exifParser.create(fileBuffer);
-            const exifData = parser.parse();
-    
-            // Store EXIF data
-            exifDataArray.push({
-              filename: file.filename,
-              resizedImage: resizedImagePath,
-              exif: exifData.tags,
-            });
-          } else {
-            // If not a JPEG, just push a placeholder
-            exifDataArray.push({
-              filename: file.filename,
-              resizedImage: resizedImagePath,
-              exif: null, // No EXIF data
-            });
+            exifData = parser.parse();
           }
+    
+          // Now, resize the image regardless of EXIF presence
+          const resizedImagePath = await resizeImage(file.path, file.filename);
+    
+          // Store EXIF data and resized image URL
+          exifDataArray.push({
+            filename: file.filename,
+            resizedImage: resizedImagePath, // This path points to resized image
+            exif: exifData ? exifData.tags : null, // Store relevant EXIF tags or null if no EXIF data
+          });
     
           // Store media entry in the database using the resized image URL
           await Media.create({
-            url: resizedImagePath,
-            resizedUrl: resizedImagePath,
+            url: resizedImagePath, // Save resized image URL
+            resizedUrl: resizedImagePath, // Save the resized image URL in this field too
             userId: req.user.id,
             postId: post.id,
           });
