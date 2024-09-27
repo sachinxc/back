@@ -2344,88 +2344,6 @@ const handleErrors = (res, error, message) => {
   res.status(500).send(message);
 };
 
-// Create post function with image resizing
-/*const createPost = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  const { title, category, description, location, activityLog } = req.body;
-
-  // Validate and parse the activityLog
-  let parsedActivityLog;
-  try {
-    const userProvidedLocation = location.split(',').map(coord => parseFloat(coord.trim())); // Assuming location is a string "lat,long"
-    parsedActivityLog = validateActivityLog(activityLog, userProvidedLocation);
-  } catch (err) {
-    return res.status(400).send("Invalid activity log format");
-  }
-
-  try {
-    // Create the post in the database first
-    const post = await Post.create({
-      title,
-      category,
-      description,
-      location,
-      activityLog: JSON.stringify(parsedActivityLog),
-      userId: req.user.id,
-    });
-
-    console.log('Files received:', req.files);
-
-    // Prepare an array to store EXIF data and resized image URLs
-    const exifDataArray = [];
-
-    if (req.files && req.files.length) {
-      for (let file of req.files) {
-        try {
-          // Read the file data to extract EXIF
-          const fileBuffer = fs.readFileSync(file.path);
-          const parser = exifParser.create(fileBuffer);
-          const exifData = parser.parse();
-
-          // Resize the image
-          const resizedImagePath = await resizeImage(file.path, file.filename);
-
-          // Store EXIF data and resized image URL
-          exifDataArray.push({
-            filename: file.filename,
-            resizedImage: resizedImagePath, // This path points to resized image
-            exif: exifData.tags, // Store relevant EXIF tags
-          });
-
-          // Store media entry in the database using the resized image URL
-          await Media.create({
-            url: resizedImagePath, // Save resized image URL
-            resizedUrl: resizedImagePath, // Save the resized image URL in this field too
-            userId: req.user.id,
-            postId: post.id,
-          });
-
-        } catch (exifError) {
-          console.warn(`EXIF parsing failed for ${file.filename}`, exifError);
-        }
-      }
-    }
-
-    // Update activity log with EXIF and resized image data
-    const updatedActivityLog = {
-      ...parsedActivityLog,
-      exifData: exifDataArray,
-    };
-
-    await post.update({
-      activityLog: JSON.stringify(updatedActivityLog),
-    });
-
-    res.status(201).send({ post, activityLog: updatedActivityLog });
-  } catch (err) {
-    handleErrors(res, err, "Error creating post");
-  }
-};*/
-
 const createPost = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -2653,10 +2571,27 @@ const deletePost = async (req, res) => {
     if (post.userId !== req.user.id) {
       return res.status(403).send("Not authorized");
     }
+
+    // Find all media associated with the post
+    const mediaFiles = await Media.findAll({ where: { postId: post.id } });
+
+    // Delete media files from file system
+    for (let media of mediaFiles) {
+      const mediaPath = media.url.replace('/uploads/', 'uploads/');
+      try {
+        await fs.promises.unlink(mediaPath); // Remove file from disk
+        console.log(`Deleted media file: ${mediaPath}`);
+      } catch (err) {
+        console.error(`Error deleting file: ${mediaPath}`, err);
+      }
+    }
+
+    // Now delete all associated entries in the database
     await Comment.destroy({ where: { postId: post.id } });
     await Media.destroy({ where: { postId: post.id } });
     await Like.destroy({ where: { postId: post.id } });
     await post.destroy();
+
     res.send("Post and associated media deleted");
   } catch (err) {
     handleErrors(res, err, "Error deleting post");
