@@ -1958,13 +1958,16 @@ const upload = multer({
 // Function to resize images
 const resizeImage = async (path, filename) => {
   const outputPath = `uploads/resized_${filename}`;
+  
   await sharp(path)
+    .rotate()  // Automatically rotate based on EXIF orientation
     .resize({ 
       width: 1200, 
-      height: 630, // maximum height 
+      height: 630, 
       fit: 'inside' 
-    }) 
-    .toFile(outputPath);  
+    })
+    .toFile(outputPath);  // Save the resized image
+  
   return `/uploads/resized_${filename}`;
 };
 
