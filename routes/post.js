@@ -1959,8 +1959,12 @@ const upload = multer({
 const resizeImage = async (path, filename) => {
   const outputPath = `uploads/resized_${filename}`;
   await sharp(path)
-    .resize(1080, 1080) // Example resolution (adjust as needed)
-    .toFile(outputPath);  // Save the resized image
+    .resize({ 
+      width: 1200, 
+      height: 630, // maximum height 
+      fit: 'inside' 
+    }) 
+    .toFile(outputPath);  
   return `/uploads/resized_${filename}`;
 };
 
