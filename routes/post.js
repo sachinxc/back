@@ -2333,7 +2333,7 @@ const resizeImage = async (path, filename) => {
     .toFile(outputPath);  // Save the resized image
 
   // Delete the original file after resizing
-  fs.unlinkSync(path);
+  await fs.promises.unlink(path);
 
   return `/uploads/resized_${filename}`;
 };
