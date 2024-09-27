@@ -2384,34 +2384,43 @@ const createPost = async (req, res) => {
     if (req.files && req.files.length) {
       for (let file of req.files) {
         try {
-          // Read the file data to extract EXIF
-          const fileBuffer = fs.readFileSync(file.path);
-          const parser = exifParser.create(fileBuffer);
-          const exifData = parser.parse();
-
-          // Resize the image
+          // Resize the image first
           const resizedImagePath = await resizeImage(file.path, file.filename);
-
-          // Store EXIF data and resized image URL
-          exifDataArray.push({
-            filename: file.filename,
-            resizedImage: resizedImagePath, // This path points to resized image
-            exif: exifData.tags, // Store relevant EXIF tags
-          });
-
+          
+          // Only try to read EXIF data if it's a JPEG
+          if (file.mimetype === 'image/jpeg') {
+            const fileBuffer = fs.readFileSync(resizedImagePath);
+            const parser = exifParser.create(fileBuffer);
+            const exifData = parser.parse();
+    
+            // Store EXIF data
+            exifDataArray.push({
+              filename: file.filename,
+              resizedImage: resizedImagePath,
+              exif: exifData.tags,
+            });
+          } else {
+            // If not a JPEG, just push a placeholder
+            exifDataArray.push({
+              filename: file.filename,
+              resizedImage: resizedImagePath,
+              exif: null, // No EXIF data
+            });
+          }
+    
           // Store media entry in the database using the resized image URL
           await Media.create({
-            url: resizedImagePath, // Save resized image URL
-            resizedUrl: resizedImagePath, // Save the resized image URL in this field too
+            url: resizedImagePath,
+            resizedUrl: resizedImagePath,
             userId: req.user.id,
             postId: post.id,
           });
-
+    
         } catch (exifError) {
           console.warn(`EXIF parsing failed for ${file.filename}`, exifError);
         }
       }
-    }
+    }    
 
     // Update activity log with EXIF and resized image data
     const updatedActivityLog = {
@@ -2664,8 +2673,3 @@ router.get("/:id", auth, getPostById);
 router.delete("/delete/:id", auth, deletePost);
 
 module.exports = router;
-
-
-
-
-
