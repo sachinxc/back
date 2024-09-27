@@ -2345,7 +2345,7 @@ const handleErrors = (res, error, message) => {
 };
 
 // Create post function with image resizing
-const createPost = async (req, res) => {
+/*const createPost = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -2370,6 +2370,91 @@ const createPost = async (req, res) => {
       description,
       location,
       activityLog: JSON.stringify(parsedActivityLog),
+      userId: req.user.id,
+    });
+
+    console.log('Files received:', req.files);
+
+    // Prepare an array to store EXIF data and resized image URLs
+    const exifDataArray = [];
+
+    if (req.files && req.files.length) {
+      for (let file of req.files) {
+        try {
+          // Read the file data to extract EXIF
+          const fileBuffer = fs.readFileSync(file.path);
+          const parser = exifParser.create(fileBuffer);
+          const exifData = parser.parse();
+
+          // Resize the image
+          const resizedImagePath = await resizeImage(file.path, file.filename);
+
+          // Store EXIF data and resized image URL
+          exifDataArray.push({
+            filename: file.filename,
+            resizedImage: resizedImagePath, // This path points to resized image
+            exif: exifData.tags, // Store relevant EXIF tags
+          });
+
+          // Store media entry in the database using the resized image URL
+          await Media.create({
+            url: resizedImagePath, // Save resized image URL
+            resizedUrl: resizedImagePath, // Save the resized image URL in this field too
+            userId: req.user.id,
+            postId: post.id,
+          });
+
+        } catch (exifError) {
+          console.warn(`EXIF parsing failed for ${file.filename}`, exifError);
+        }
+      }
+    }
+
+    // Update activity log with EXIF and resized image data
+    const updatedActivityLog = {
+      ...parsedActivityLog,
+      exifData: exifDataArray,
+    };
+
+    await post.update({
+      activityLog: JSON.stringify(updatedActivityLog),
+    });
+
+    res.status(201).send({ post, activityLog: updatedActivityLog });
+  } catch (err) {
+    handleErrors(res, err, "Error creating post");
+  }
+};*/
+
+const createPost = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { title, category, description, location, activityLog } = req.body;
+
+  // Set activityLog to null if not provided
+  let parsedActivityLog = null;
+
+  // Validate and parse the activityLog if it is provided
+  if (activityLog) {
+    try {
+      const userProvidedLocation = location.split(',').map(coord => parseFloat(coord.trim())); // Assuming location is a string "lat,long"
+      parsedActivityLog = validateActivityLog(activityLog, userProvidedLocation);
+    } catch (err) {
+      return res.status(400).send("Invalid activity log format");
+    }
+  }
+
+  try {
+    // Create the post in the database
+    const post = await Post.create({
+      title,
+      category,
+      description,
+      location,
+      activityLog: JSON.stringify(parsedActivityLog), // Now this will be null if activityLog is not provided
       userId: req.user.id,
     });
 
