@@ -100,8 +100,11 @@ const createPost = async (req, res) => {
     const captionPromises = resizedImageBuffers.map(
       async (resizedImageBuffer) => {
         const captionResponse = await queryCaption(resizedImageBuffer); // Use the resized image buffer
+        console.log("Caption API Response:", captionResponse);
         if (captionResponse && captionResponse[0]) {
           captions.push(captionResponse[0].generated_text); // Extract the caption
+        } else {
+          console.warn("No caption generated for image");
         }
       }
     );
