@@ -108,18 +108,6 @@ const createPost = async (req, res) => {
 
     await Promise.all(captionPromises); // Wait for all captions to be fetched
 
-    // Clear resized buffers after they are no longer needed
-    for (let i = 0; i < resizedImageBuffers.length; i++) {
-      resizedImageBuffers[i] = null; // Clear references to buffers
-    }
-
-    // Clear the raw file buffers after processing
-    if (req.files) {
-      for (let file of req.files) {
-        file.buffer = null; // Clear the buffer reference for each file
-      }
-    }
-
     const updatedActivityLog = {
       ...parsedActivityLog,
       exifData: exifDataArray,
