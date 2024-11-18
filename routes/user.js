@@ -105,6 +105,7 @@ router.get("/profile/:id", auth, async (req, res) => {
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
+      organizationName: user.organizationName,
       username: user.username,
       bio: user.bio,
       profilePic: user.profilePic,
