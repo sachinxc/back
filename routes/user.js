@@ -101,6 +101,8 @@ router.get("/profile/:id", auth, async (req, res) => {
       })
     );
 
+    const totalPosts = user.posts.length;
+
     res.send({
       id: user.id,
       firstName: user.firstName,
@@ -112,6 +114,7 @@ router.get("/profile/:id", auth, async (req, res) => {
       followers: user.followers,
       following: user.following,
       posts: postsWithMedia,
+      totalPosts,
     });
   } catch (err) {
     console.error("Error fetching profile:", err);
