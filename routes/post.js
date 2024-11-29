@@ -739,20 +739,6 @@ const getPostById = async (req, res) => {
   }
 };
 
-// Get total number of posts for a user
-const getUserPostCount = async (req, res) => {
-  try {
-    const userId = req.params.userId; // Extract userId from the URL
-    const postCount = await Post.count({
-      where: { userId },
-    });
-
-    res.send({ userId, postCount });
-  } catch (err) {
-    handleErrors(res, err, "Error fetching user's post count");
-  }
-};
-
 // Route Definitions
 router.post(
   "/create",
@@ -778,7 +764,6 @@ router.get("/:postId/comments", auth, getComments);
 router.delete("/:postId/comment/:commentId", auth, deleteComment);
 router.get("/feed", auth, viewFeed);
 router.get("/:id", auth, getPostById);
-router.get("/user/:userId/post-count", auth, getUserPostCount);
 router.delete("/delete/:id", auth, deletePost);
 
 module.exports = router;
